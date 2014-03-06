@@ -144,21 +144,25 @@ CLOSE CL;
 
 SET done1=FALSE;
 
-
-
-SET _a=0;
 OPEN CL2;
-
-	label1: LOOP
-		FETCH CL2 INTO _b,_d,_f,_g,_e ;
-		
-		IF done1 THEN 
-			LEAVE label1;
+#ndes.moved_inode_id,ndes.time,ndes.original_row,t2.original_row, t2.time
+	label2: LOOP
+		FETCH CL2 INTO _i1,_i2,_c1,_c2,_i3;
+		IF done1 THEN
+			LEAVE label2;
 		END IF;
-       select _b,_d,_f,_g,_e ;
-		SET _a=_a+1;
+# If moved time is greater than modified time means, the child was modified first and then moved.
+		IF _i3 IS NULL THEN
+            SELECT _c1;
+		ELSEIF _i2>_i3 THEN
+			SELECT _c1;
+		ELSE
+			SELECT _c2;
+		END IF;
+
 	END LOOP;
-#SELECT _a,_b;
-#call ls(2,4,5);
+
+
 CLOSE CL2;
+
 END
