@@ -4,14 +4,14 @@
 -- --------------------------------------------------------------------------------
 DELIMITER $$
 
+ 
 CREATE DEFINER=`hop`@`%` PROCEDURE `list_files`(IN stime  INT, IN Arg INT)
 BEGIN
-DECLARE done1 INT DEFAULT FALSE;
-DECLARE done2 INT DEFAULT FALSE;
-DECLARE _i1,_i2,_i3,_i4,_i5,_i6 INT;
-
-DECLARE _id,_parent,_isdir,_isdel INT;
-DECLARE  _name ,_c1,_c2 VARCHAR(50);
+DECLARE done INT DEFAULT FALSE;
+DECLARE _i1,_i3,_i4,_i5 INT;
+DECLARE _t1,_t2 INT;
+DECLARE _id,_parent,_isDir,_isDel INT;
+DECLARE  _name ,_c2 VARCHAR(50);
 
 
 #DECLARE Arg INT default 4;
@@ -19,7 +19,7 @@ DECLARE  _name ,_c1,_c2 VARCHAR(50);
 
 
 DECLARE CL  CURSOR FOR 
-SELECT ndes.*,t2.original_row AS mdr, t2.time AS mdt 
+SELECT ndes.*,t2.orig_Name,t2.orig_Parent_Id,t2.orig_isDir , t2.orig_isDeleted , t2.time
 FROM(
 SELECT nodes.* FROM 
 
@@ -53,7 +53,8 @@ ON ndes.id = t2.modified_inode_id;
 
 
 DECLARE CL2 CURSOR FOR
-SELECT ndes.moved_inode_id,ndes.time,ndes.original_row,t2.original_row, t2.time
+SELECT ndes.moved_inode_id,ndes.Orig_Name,ndes.orig_Parent_Id,ndes.Orig_isDir,ndes.Orig_isDeleted,
+t2.Orig_Name,t2.orig_Parent_Id,t2.Orig_isDir,t2.Orig_isDeleted,ndes.time,t2.time
 FROM
 (
 
@@ -115,49 +116,68 @@ ON ndes.moved_inode_id = t2.modified_inode_id;
 
 
 
-DECLARE CONTINUE HANDLER FOR NOT FOUND SET done1 = TRUE;
-#DECLARE CONTINUE HANDLER FOR NOT FOUND SET done2 = TRUE;
+DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
 OPEN CL;
 
 	label1: LOOP
-		FETCH CL INTO _id,_name,_parent,_isdir,_isdel,_c1,_i1;
-		IF done1 THEN
+		#SELECT ndes.*,t2.orig_Name,t2.orig_Parent_Id,t2.orig_isDir , t2.orig_isDelted , t2.time
+		FETCH CL INTO _id,_name,_parent,_isDir,_isDel,_c2,_i3,_i4,_i5,_t1;
+		
+		IF done THEN
 			LEAVE label1;
 		END IF;
 
-		IF _i1 IS NULL THEN
-			IF _isdir =1 THEN
-			  select _id,_name,_parent_isdir,_is_del;
+		IF _t1 IS NULL THEN
+			IF _isDir =1 THEN
+			  select _id,_name,_parent,_isDir,_isDel;
 			  call list_files(stime,_id);
 			ELSE
-			    select _id,_name,_parent_isdir,_is_del;
+			    select _id,_name,_parent,_isDir,_isDel;
 			END IF;
 		
-		ELSE
-			select _c1;
+		ELSE #Take the modified fields
+			IF _i4 =1 THEN #It is a directory.So call recursively.
+			  select _id,_c2,_i3,_i4,_i5;
+			  call list_files(stime,_id);
+			ELSE
+			   select _id,_c2,_i3,_i4,_i5;
+			END IF;
 		END IF;			  					
 	
 	END LOOP;
 
 CLOSE CL;
 
-SET done1=FALSE;
+SET done=FALSE;
 
 OPEN CL2;
-#ndes.moved_inode_id,ndes.time,ndes.original_row,t2.original_row, t2.time
+#SELECT ndes.moved_inode_id,ndes.Orig_Name,ndes.orig_Parent_Id,ndes.Orig_isDir,ndes.Orig_isDeleted,
+#t2.Orig_Name,t2.orig_Parent_Id,t2.Orig_isDir,t2.Orig_isDeleted,ndes.time,t2.time
 	label2: LOOP
-		FETCH CL2 INTO _i1,_i2,_c1,_c2,_i3;
-		IF done1 THEN
+		FETCH CL2 INTO _id,_name,_parent,_isDir,_isDel,_c2,_i3,_i4,_i5,_t1,_t2;
+		IF done THEN
 			LEAVE label2;
 		END IF;
 # If moved time is greater than modified time means, the child was modified first and then moved.
-		IF _i3 IS NULL THEN
-            SELECT _c1;
-		ELSEIF _i2>_i3 THEN
-			SELECT _c1;
+		IF _t2 IS NULL OR _t2>_t1 THEN 
+
+			IF _isDir =1 THEN
+			  SELECT _id,_name,_parent,_isDir,_isDel;
+			  CALL list_files(stime,_id);
+			ELSE
+			    SELECT _id,_name,_parent,_isDir,_isDel;
+			END IF;
+
 		ELSE
-			SELECT _c2;
+
+			IF _i4 =1 THEN
+				SELECT _id,_c2,_i3,_i4,_i5;
+			    CALL list_files(stime,_id);
+			ELSE
+			    SELECT _id,_c2,_i3,_i4,_i5;
+			END IF;
+
 		END IF;
 
 	END LOOP;
