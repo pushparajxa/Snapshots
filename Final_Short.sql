@@ -12,6 +12,8 @@ DECLARE _t1,_t2 INT;
 DECLARE _id,_parent,_isDir,_isDel INT;
 DECLARE  _name ,_c2 VARCHAR(50);
 
+
+
 DECLARE CL  CURSOR FOR 
 SELECT ns.id AS Id , ns.name AS Name, ns.parent_id AS Parent_ID, ns.isDir AS IsDir,ns.isDeleted AS IsDeleted,
 t2.orig_Name,t2.orig_Parent_Id,t2.orig_isDir , t2.orig_isDeleted ,ns.time,t2.time
@@ -19,7 +21,7 @@ FROM(
 #4294967295 is max int value.
 	(SELECT nodes.* ,4294967295 AS time 
 	FROM 
-		(SELECT inodes.* FROM inodes WHERE parent_id=Arg) AS nodes 
+		(SELECT inodesN.* FROM inodesN WHERE parent_id=Arg) AS nodes 
 		LEFT JOIN
 		( 
 			(SELECT Created_Inode_id AS inode_id  FROM clist WHERE Inode_id=Arg AND time>stime ) 
@@ -52,18 +54,18 @@ FROM(
 
 		LEFT JOIN
 
-		(SELECT m1.*
-		FROM 
-			mvinlist AS m1 
-			INNER JOIN
-			(SELECT moved_in_inode_id,Min(time) As time
+		(#SELECT m1.*
+		#FROM 
+			#mvinlist AS m1 
+			#INNER JOIN(
+			SELECT moved_in_inode_id,Min(time) As time
 			FROM 
 				mvinlist
 			WHERE Inode_Id=Arg AND time>stime
 			GROUP BY moved_in_inode_id
-			) AS m2
-			ON m1.moved_in_inode_id=m2.moved_in_inode_id AND m1.time = m2.time
-			WHERE m1.Inode_Id=Arg
+			#) AS m2
+			#ON m1.moved_in_inode_id=m2.moved_in_inode_id AND m1.time = m2.time
+			#WHERE m1.Inode_Id=Arg
 		) AS mvdin
 
 		ON mvd.moved_inode_id = mvdin.moved_in_inode_id AND mvd.time < mvdin.time
@@ -92,6 +94,8 @@ DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
 
 SET done=FALSE;
+
+
 
 OPEN CL;
 #SELECT ns.id AS Id , ns.name AS Name, ns.parent_id AS Parent_ID, ns.isDir AS IsDir,ns.isDeleted AS IsDeleted,
@@ -126,5 +130,7 @@ OPEN CL;
 
 
 CLOSE CL;
+
+
 
 END
