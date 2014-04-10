@@ -18,10 +18,12 @@ DECLARE CL  CURSOR FOR
 SELECT ns.id AS Id , ns.name AS Name, ns.parent_id AS Parent_ID, ns.isDir AS IsDir,ns.isDeleted AS IsDeleted,
 t2.orig_Name,t2.orig_Parent_Id,t2.orig_isDir , t2.orig_isDeleted ,ns.time,t2.time
 FROM(
-#4294967295 is max int value.
+
 	(SELECT nodes.* ,4294967295 AS time 
-	FROM 
+		FROM 
+		
 		(SELECT inodesN.* FROM inodesN WHERE parent_id=Arg) AS nodes 
+		
 		LEFT JOIN
 		( 
 			(SELECT Created_Inode_id AS inode_id  FROM clist WHERE Inode_id=Arg AND time>stime ) 
@@ -41,31 +43,30 @@ FROM(
 	FROM
 		(SELECT m1.*
 		FROM 
-			mvlist AS m1 INNER JOIN
+			(SELECT * FROM mvlist WHERE  Inode_Id=Arg AND time>stime ) AS m1 
+
+			INNER JOIN
+
 			(SELECT moved_inode_id,Min(time) AS time 
 			FROM 
 				mvlist
 			WHERE Inode_Id=Arg AND time>stime
 			GROUP BY moved_inode_id
 			) AS m2
+
 		ON m1.moved_inode_id=m2.moved_inode_id AND m1.time = m2.time
-		WHERE m1.Inode_Id=Arg
+		
 	   ) AS mvd
 
 		LEFT JOIN
 
-		(#SELECT m1.*
-		#FROM 
-			#mvinlist AS m1 
-			#INNER JOIN(
-			SELECT moved_in_inode_id,Min(time) As time
+		
+		(SELECT moved_in_inode_id,Min(time) As time
 			FROM 
 				mvinlist
 			WHERE Inode_Id=Arg AND time>stime
 			GROUP BY moved_in_inode_id
-			#) AS m2
-			#ON m1.moved_in_inode_id=m2.moved_in_inode_id AND m1.time = m2.time
-			#WHERE m1.Inode_Id=Arg
+			
 		) AS mvdin
 
 		ON mvd.moved_inode_id = mvdin.moved_in_inode_id AND mvd.time < mvdin.time
@@ -75,16 +76,21 @@ FROM(
 
 LEFT JOIN
 
-(select m1.*
-from mlist AS m1 INNER JOIN
-(
-Select modified_inode_id,Min(time) As time
-FROM mlist
-WHERE Inode_Id=Arg AND time>stime
-GROUP BY Modified_Inode_Id
-) AS m2
-ON m1.Modified_Inode_Id=m2.modified_inode_id AND m1.time = m2.time
-WHERE m1.Inode_Id=Arg) AS t2  
+(SELECT  m1.*
+FROM
+	(SELECT * FROM mlist WHERE Inode_Id=Arg AND time>stime ) AS m1
+	
+	INNER JOIN
+	(
+		Select modified_inode_id,Min(time) As time
+		FROM mlist
+		WHERE Inode_Id=Arg AND time>stime
+		GROUP BY Modified_Inode_Id
+	) AS m2
+
+	ON m1.Modified_Inode_Id=m2.modified_inode_id AND m1.time = m2.time
+
+) AS t2  
  
 ON ns.id = t2.modified_inode_id;
 
