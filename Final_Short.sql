@@ -4,7 +4,7 @@
 -- --------------------------------------------------------------------------------
 DELIMITER $$
 
-CREATE DEFINER=`hop`@`%` PROCEDURE `ls`(IN stime INT,IN Arg INT)
+CREATE DEFINER=`hop`@`%` PROCEDURE `ls_v1`(IN stime INT,IN Arg INT)
 BEGIN
 DECLARE done INT DEFAULT FALSE;
 DECLARE _i1,_i3,_i4,_i5 INT;
@@ -39,37 +39,40 @@ FROM(
 	
 	UNION 
 
-	(SELECT mvd.moved_inode_id,mvd.Orig_Name,mvd.orig_Parent_Id,mvd.Orig_isDir,mvd.Orig_isDeleted,mvd.time
-	FROM
-		(SELECT m1.*
+	
+		(SELECT m1.moved_inode_id,m1.Orig_Name,m1.orig_Parent_Id,m1.Orig_isDir,m1.Orig_isDeleted,m1.time
 		FROM 
 			(SELECT * FROM mvlist WHERE  Inode_Id=Arg AND time>stime ) AS m1 
 
 			INNER JOIN
 
-			(SELECT moved_inode_id,Min(time) AS time 
-			FROM 
-				mvlist
-			WHERE Inode_Id=Arg AND time>stime
-			GROUP BY moved_inode_id
-			) AS m2
+			(SELECT m2.* 
+				FROM			
 
-		ON m1.moved_inode_id=m2.moved_inode_id AND m1.time = m2.time
-		
-	   ) AS mvd
+				(SELECT moved_inode_id,Min(time) AS time 
+				FROM 
+					mvlist
+				WHERE Inode_Id=Arg AND time>stime
+				GROUP BY moved_inode_id
+				) AS m2
 
-		LEFT JOIN
-
-		
-		(SELECT moved_in_inode_id,Min(time) As time
-			FROM 
-				mvinlist
-			WHERE Inode_Id=Arg AND time>stime
-			GROUP BY moved_in_inode_id
+				LEFT JOIN
+ 
+				(SELECT moved_in_inode_id,Min(time) As time
+				FROM 
+					mvinlist
+				WHERE Inode_Id=Arg AND time>stime
+				GROUP BY moved_in_inode_id
 			
-		) AS mvdin
+				) AS mvdin
 
-		ON mvd.moved_inode_id = mvdin.moved_in_inode_id AND mvd.time < mvdin.time
+				ON m2.moved_inode_id=mvdin.moved_in_inode_id
+				WHERE mvdin.moved_in_inode_id IS NULL OR m2.time < mvdin.time
+		) AS m4
+
+
+		ON m1.moved_inode_id=m4.moved_inode_id AND m1.time = m4.time
+		
 	)
 
 ) AS ns
@@ -116,7 +119,7 @@ OPEN CL;
 
 			IF _isDir =1 THEN
 			  SELECT _id,_name,_parent,_isDir,_isDel;
-			  CALL ls(stime,_id);
+			  CALL ls_v1(stime,_id);
 			ELSE
 			    SELECT _id,_name,_parent,_isDir,_isDel;
 			END IF;
@@ -125,7 +128,7 @@ OPEN CL;
 
 			IF _i4 =1 THEN
 				SELECT _id,_c2,_i3,_i4,_i5;
-			    CALL ls(stime,_id);
+			    CALL ls_v1(stime,_id);
 			ELSE
 			    SELECT _id,_c2,_i3,_i4,_i5;
 			END IF;
