@@ -38,10 +38,14 @@ FROM(
 	) 
 	
 	UNION 
+	 (
+		SELECT m8.*
 
-	
+		FROM 		
+
 		(SELECT m1.moved_inode_id,m1.Orig_Name,m1.orig_Parent_Id,m1.Orig_isDir,m1.Orig_isDeleted,m1.time
-		FROM 
+		
+                 FROM 
 			(SELECT * FROM mvlist WHERE  Inode_Id=Arg AND time>stime ) AS m1 
 
 			INNER JOIN
@@ -68,12 +72,23 @@ FROM(
 
 				ON m2.moved_inode_id=mvdin.moved_in_inode_id
 				WHERE mvdin.moved_in_inode_id IS NULL OR m2.time < mvdin.time
-		) AS m4
+		      ) AS m4
 
 
-		ON m1.moved_inode_id=m4.moved_inode_id AND m1.time = m4.time
+		    ON m1.moved_inode_id=m4.moved_inode_id AND m1.time = m4.time
 		
-	)
+	    ) AS m8
+
+	   LEFT JOIN 
+		#Handle the case of (created and moved) or created , moved, moved-in and then moved.  
+	
+	   (SELECT Created_Inode_id AS inode_id  FROM clist WHERE Inode_id=Arg AND time>stime ) AS m9
+	 
+ 	   ON m8.moved_inode_id=m9.inode_id
+           WHERE m9.inode_id IS NULL
+          
+       	
+    )
 
 ) AS ns
 
@@ -95,8 +110,7 @@ FROM
 
 ) AS t2  
  
-ON ns.id = t2.modified_inode_id;
-
+ON ns.id = t2.modified_inode_id ORDER BY ns.id;
 
 DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
 
